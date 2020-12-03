@@ -1,65 +1,79 @@
+/*
+  UDPSendReceive.pde:
+  This sketch receives UDP message strings, prints them to the serial port
+  and sends an "acknowledge" string back to the sender
+
+  A Processing sketch is included at the end of file that can be used to send
+  and received messages for testing with a computer.
+
+  created 21 Aug 2010
+  by Michael Margolis
+
+  This code is in the public domain.
+
+  adapted from Ethernet library examples
+*/
+
+
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-  
-// Set WiFi credentials
-#define WIFI_SSID "eir52624379"
-#define WIFI_PASS "kb2xJucXj7"
-#define UDP_PORT 8888
- 
-// UDP
-WiFiUDP UDP;
-char packet[255];
-char reply[] = "Packet received!";
-  
+
+#ifndef STASSID
+#define STASSID "eir52624379"
+#define STAPSK  "kb2xJucXj7"
+#endif
+
+unsigned int localPort = 8888;      // local port to listen on
+
+// buffers for receiving and sending data
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE + 1]; //buffer to hold incoming packet,
+char  ReplyBuffer[] = "acknowledged\r\n";       // a string to send back
+
+WiFiUDP Udp;
+
 void setup() {
-  // Setup serial port
   Serial.begin(115200);
-  Serial.println();
-  
-  // Begin WiFi
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  
-  // Connecting to WiFi...
-  Serial.print("Connecting to ");
-  Serial.print(WIFI_SSID);
-  // Loop continuously while WiFi is not connected
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(100);
-    Serial.print(".");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(STASSID, STAPSK);
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(500);
   }
-  
-  // Connected to WiFi
-  Serial.println();
   Serial.print("Connected! IP address: ");
   Serial.println(WiFi.localIP());
- 
-  // Begin listening to UDP port
-  UDP.begin(UDP_PORT);
-  Serial.print("Listening on UDP port ");
-  Serial.println(UDP_PORT);
-  
-}
- 
-void loop() {
- 
-  // If packet received...
-  int packetSize = UDP.parsePacket();
-  if (packetSize) {
-    Serial.print("Received packet! Size: ");
-    Serial.println(packetSize); 
-    int len = UDP.read(packet, 255);
-    if (len > 0)
-    {
-      packet[len] = '\0';
-    }
-    Serial.print("Packet received: ");
-    Serial.println(packet);
+  Serial.printf("UDP server on port %d\n", localPort);
+  Udp.begin(localPort);
 
-    // Send return packet
-    UDP.beginPacket(UDP.remoteIP(), UDP.remotePort());
-    UDP.write(reply);
-    UDP.endPacket();
-  }
- 
+  pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
 }
+
+void loop() {
+  // if there's data available, read a packet
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.printf("Received packet of size %d from %s:%d\n    (to %s:%d, free heap = %d B)\n",
+                  packetSize,
+                  Udp.remoteIP().toString().c_str(), Udp.remotePort(),
+                  Udp.destinationIP().toString().c_str(), Udp.localPort(),
+                  ESP.getFreeHeap());
+
+    // read the packet into packetBufffer
+    int n = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    packetBuffer[n] = 0;
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+
+
+    // send a reply, to the IP address and port that sent us the packet we received
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(ReplyBuffer);
+    Udp.endPacket();
+  }
+
+}
+
+/*
+  test (shell/netcat):
+  --------------------
+	  nc -u 192.168.esp.address 8888
+*/

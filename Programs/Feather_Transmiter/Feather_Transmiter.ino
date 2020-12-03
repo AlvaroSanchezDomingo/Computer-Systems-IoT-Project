@@ -1,73 +1,91 @@
 /*
-    This sketch establishes a TCP connection to a "quote of the day" service.
-    It sends a "hello" message, and then prints received data.
+  UDPSendReceive.pde:
+  This sketch receives UDP message strings, prints them to the serial port
+  and sends an "acknowledge" string back to the sender
+
+  A Processing sketch is included at the end of file that can be used to send
+  and received messages for testing with a computer.
+
+  created 21 Aug 2010
+  by Michael Margolis
+
+  This code is in the public domain.
+
+  adapted from Ethernet library examples
 */
 
+
 #include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 
 #ifndef STASSID
-#define STASSID "eir52624379"
-#define STAPSK  "kb2xJucXj7"
+#define STASSID "Alvaro-wifi-lp"
+#define STAPSK  "12345678"
 #endif
 
-const char* ssid     = STASSID;
-const char* password = STAPSK;
+unsigned int localPort = 8888;      // local port to listen on
 
-const char* host = "192.168.1.14";
-const uint16_t port = 9999;
+// buffers for receiving and sending data
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE + 1]; //buffer to hold incoming packet,
+float temp = 0;
+
+WiFiUDP Udp;
 
 void setup() {
   Serial.begin(115200);
-
-  // We start by connecting to a WiFi network
-
-  Serial.println();
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
-     would try to act as both a client and an access-point and could cause
-     network-issues with your other WiFi-devices on your WiFi-network. */
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-
+  WiFi.begin(STASSID, STAPSK);
   while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
     delay(500);
-    Serial.print(".");
   }
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
+  Serial.print("Connected! IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.printf("UDP server on port %d\n", localPort);
+  Udp.begin(localPort);
+
+  
 }
 
 void loop() {
-  Serial.print("connecting to ");
-  Serial.print(host);
-  Serial.print(':');
-  Serial.println(port);
+  // if there's data available, read a packet
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.printf("Received packet of size %d from %s:%d\n    (to %s:%d, free heap = %d B)\n",
+                  packetSize,
+                  Udp.remoteIP().toString().c_str(), Udp.remotePort(),
+                  Udp.destinationIP().toString().c_str(), Udp.localPort(),
+                  ESP.getFreeHeap());
 
-  // Use WiFiClient class to create TCP connections
-  WiFiClient client;
-  if (!client.connect(host, port)) {
-    Serial.println("connection failed");
-    delay(5000);
-    return;
+    // read the packet into packetBufffer
+    int n = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    packetBuffer[n] = 0;
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+    temp = temp + 1.18;
+    
+    // Define 
+    String str = String(temp); 
+
+    // Length (with one extra character for the null terminator)
+    int str_len = str.length() + 1; 
+
+    // Prepare the character array (the buffer) 
+    char char_array[str_len];
+
+    // Copy it over 
+    str.toCharArray(char_array, str_len);
+    // send a reply, to the IP address and port that sent us the packet we received
+    //char  ReplyBuffer[] = ;       // a string to send back
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(char_array);
+    Udp.endPacket();
   }
 
-  // This will send a string to the server
-  Serial.println("sending data to server");
-  if (client.connected()) {
-    client.println("3");
-  }
-
-
-  // Close the connection
-  Serial.println();
-  Serial.println("closing connection");
-  client.stop();
-
-  delay(10000); // execute once every 5 segundos, don't flood remote service
 }
+
+/*
+  test (shell/netcat):
+  --------------------
+	  nc -u 192.168.esp.address 8888
+*/
