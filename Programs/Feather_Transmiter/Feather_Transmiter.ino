@@ -17,11 +17,27 @@
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
+#include "DHT.h"
 
 #ifndef STASSID
 #define STASSID "Alvaro-wifi-lp"
 #define STAPSK  "12345678"
 #endif
+
+// Pin
+#define DHTPIN 5
+
+// Use DHT11
+#define DHTTYPE DHT11
+
+// the IP address for the shield:
+IPAddress ip(192, 168, 137, 3);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress gateway(192, 168, 137, 1); 
+IPAddress dns(192, 168, 137, 1); 
+
+// Create instance
+DHT dht(DHTPIN, DHTTYPE, 15);
 
 unsigned int localPort = 8888;      // local port to listen on
 
@@ -33,8 +49,10 @@ WiFiUDP Udp;
 
 void setup() {
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
+  WiFi.config(ip, gateway, subnet, dns);
+  //WiFi.mode(WIFI_STA);
   WiFi.begin(STASSID, STAPSK);
+
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
     delay(500);
@@ -44,7 +62,8 @@ void setup() {
   Serial.printf("UDP server on port %d\n", localPort);
   Udp.begin(localPort);
 
-  
+  // Init DHT
+  dht.begin();
 }
 
 void loop() {
@@ -60,13 +79,28 @@ void loop() {
     // read the packet into packetBufffer
     int n = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     packetBuffer[n] = 0;
-    Serial.println("Contents:");
+    Serial.println("Request from IOT hub:");
     Serial.println(packetBuffer);
-    temp = temp + 1.18;
-    
-    // Define 
-    String str = String(temp); 
 
+    // Reading temperature & humidity
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
+    int lightLevelRaw = analogRead(A0);
+    float l = lightLevelRaw/1024. * 100;
+
+    String aStringObject;
+    aStringObject = packetBuffer;
+
+    // Define 
+    String str = ""; 
+    if (aStringObject == "temperature"){
+      str = String(t); 
+      
+    }else if(aStringObject == "humidity"){
+      str = String(h);
+    }
+    Serial.println("Send to IOT hub : ");
+    Serial.println(str);
     // Length (with one extra character for the null terminator)
     int str_len = str.length() + 1; 
 

@@ -19,21 +19,28 @@
 #include <WiFiUdp.h>
 
 #ifndef STASSID
-#define STASSID "eir52624379"
-#define STAPSK  "kb2xJucXj7"
+#define STASSID "Alvaro-wifi-lp"
+#define STAPSK  "12345678"
 #endif
 
-unsigned int localPort = 8888;      // local port to listen on
+// the IP address for the shield:
+IPAddress ip(192, 168, 137, 2);
+IPAddress subnet(255, 255, 255, 0);
+IPAddress gateway(192, 168, 137, 1); 
+IPAddress dns(192, 168, 137, 2); 
 
+unsigned int localPort = 8888;      // local port to listen on
+const int RELAY=0  ;
 // buffers for receiving and sending data
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE + 1]; //buffer to hold incoming packet,
-char  ReplyBuffer[] = "acknowledged\r\n";       // a string to send back
+char  ReplyBuffer[] = "OK";       // a string to send back
 
 WiFiUDP Udp;
 
 void setup() {
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
+  WiFi.config(ip, gateway, subnet, dns);
+  //WiFi.mode(WIFI_STA);
   WiFi.begin(STASSID, STAPSK);
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
@@ -45,6 +52,7 @@ void setup() {
   Udp.begin(localPort);
 
   pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
+  pinMode(RELAY,OUTPUT);
 }
 
 void loop() {
@@ -60,9 +68,18 @@ void loop() {
     // read the packet into packetBufffer
     int n = Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
     packetBuffer[n] = 0;
-    Serial.println("Contents:");
+    Serial.println("Request from IOT hub:");
     Serial.println(packetBuffer);
-
+    String aStringObject;
+    aStringObject = packetBuffer;
+    
+    if (aStringObject == "1"){
+      digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
+      digitalWrite(RELAY, LOW);   // Turn the LED on (Note that LOW is the voltage level
+    }else{
+      digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+      digitalWrite(RELAY, HIGH);   // Turn the LED on (Note that LOW is the voltage level
+    }
 
     // send a reply, to the IP address and port that sent us the packet we received
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
