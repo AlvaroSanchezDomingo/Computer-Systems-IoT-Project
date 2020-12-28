@@ -1,3 +1,3 @@
 # Computer-Systems-IoT-Project
 
-Documents/Images/python terminal.PNG
+![terminal](Documents/Images/python terminal.PNG)
