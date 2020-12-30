@@ -1,0 +1,38 @@
+{{> menu id="dashboard"}}
+
+<section class="ui raised segment">
+  <header class="ui header">
+    Dashboard
+  </header>
+  <table class="ui fixed table">
+    <thead>
+      <tr>
+          <th>Relay</th>
+          <th>Temperature</th>
+          <th>Humidity</th>
+          <th>Light</th>
+      </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                {{#if relay}}
+                    <a href="/dashboard/toggle0" class="ui icon button">
+                        <i class="toggle on icon"></i>
+                    </a>
+                {{else}}
+                    <a href="/dashboard/toggle0" class="ui icon button">
+                        <i class="toggle off icon"></i>
+                    </a>
+                {{/if}}
+
+            </td>
+            <td> {{temperature}} C</td>
+            <td> {{humidity}} %</td>
+            <td> {{light}} %</td>
+        </tr>
+    </tbody>
+  </table>
+
+</section>
+
